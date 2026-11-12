@@ -1,0 +1,28 @@
+lagpax
+Copyright (c) 2026 Davide Sartor
+
+lagpax is a JAX translation of the separable (GPsep) part of the laGP R package:
+
+    laGP: Local Approximate Gaussian Process Regression, version 1.5-9
+    Copyright (c) Robert B. Gramacy <rbg@vt.edu> and Furong Sun <furongs@vt.edu>
+    https://cran.r-project.org/package=laGP
+
+laGP is licensed under the LGPL (no version given, which CRAN reads as 2 or later),
+so lagpax is distributed under LGPL-2.0-or-later; see LICENSE.
+
+lagpax depends on (but does not include) `vlse.optim` from jaxvlse
+(https://github.com/davidesartor/vlse), which is Apache-2.0.
+
+lagpax is not affiliated with or endorsed by the laGP authors.
+
+References:
+
+    Gramacy, R. B. and Apley, D. W. (2015). "Local Gaussian Process Approximation
+    for Large Computer Experiments." Journal of Computational and Graphical
+    Statistics, 24(2), 561-578.
+
+    Gramacy, R. B. (2016). "laGP: Large-Scale Spatial Modeling via Local
+    Approximate Gaussian Processes in R." Journal of Statistical Software, 72(1).
+
+    Seo, S., Wallat, M., Graepel, T. and Obermayer, K. (2000). "Gaussian Process
+    Regression: Active Data Selection and Test Point Rejection." IJCNN.
