@@ -6,14 +6,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-import numpy as np
 from jaxtyping import Array, Float, Int, Key
-from scipy.stats import qmc
-
-
-def latin_hypercube(n: int, d: int, rng: np.random.Generator | None = None) -> Float[Array, "n d"]:
-    """Latin hypercube sample of n points in the unit cube."""
-    return jnp.asarray(qmc.LatinHypercube(d=d, rng=rng).random(n=n))
 
 
 def nearest(x: Float[Array, "n d"], centers: Float[Array, "m d"], k: int = 1) -> Int[Array, "n k"]:

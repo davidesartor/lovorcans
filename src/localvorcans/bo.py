@@ -9,9 +9,10 @@ import jax.random as jr
 import lagpax
 import numpy as np
 from jaxtyping import Array, Float
+from scipy.stats import qmc
 
 from localvorcans.acquisition import log_expected_improvement
-from localvorcans.candidates import latin_hypercube, voronoi_candidates
+from localvorcans.candidates import voronoi_candidates
 
 
 def minimize(
@@ -27,7 +28,7 @@ def minimize(
 ) -> dict:
     """Minimize f over the unit cube, `batch_size` evaluations per round."""
     rng = np.random.default_rng(seed)
-    x = latin_hypercube(n_init, d, rng)
+    x = jnp.asarray(qmc.Sobol(d, rng=rng).random(n_init))
     y = f(x)
     acquisition_time = 0.0
 
@@ -36,7 +37,7 @@ def minimize(
         candidates_key, gp_key = jr.split(key)
 
         # candidates on the boundaries of the Voronoi cells of the design
-        candidates = latin_hypercube(raw_samples, d, rng)
+        candidates = jnp.asarray(qmc.Sobol(d, rng=rng).random(raw_samples))
         candidates = voronoi_candidates(candidates_key, candidates, centers=x)
 
         # one local GP per candidate; lagpax assumes a zero mean, so center y

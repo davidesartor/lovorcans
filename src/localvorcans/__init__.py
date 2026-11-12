@@ -7,11 +7,10 @@ from localvorcans.acquisition import (
     upper_confidence_bound,
 )
 from localvorcans.bo import minimize
-from localvorcans.candidates import latin_hypercube, nearest, voronoi_candidates
+from localvorcans.candidates import nearest, voronoi_candidates
 
 __all__ = [
     "boltzmann_select",
-    "latin_hypercube",
     "log_expected_improvement",
     "minimize",
     "nearest",

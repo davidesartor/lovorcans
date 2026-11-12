@@ -2,7 +2,7 @@
 
 Batch Bayesian optimization in JAX for many evaluations. Each round:
 
-1. A Latin hypercube of candidates is pushed, by bisection along a direction, onto the boundaries
+1. A scrambled Sobol sample of candidates is pushed, by bisection along a direction, onto the boundaries
    of the Voronoi cells of the points evaluated so far.
 2. Every candidate gets its own local GP, fitted on its neighbors only
    ([lagpax](https://github.com/davidesartor/lagpax), a JAX port of laGP). Thousands of small
@@ -41,7 +41,7 @@ minimum to 0.
 
 ```
 src/localvorcans/
-  candidates.py    Latin hypercube, nearest centers, Voronoi-boundary candidates
+  candidates.py    nearest centers, Voronoi-boundary candidates
   acquisition.py   log EI, top-q selection
   bo.py            the optimization loop
 experiments/       entry scripts and their sbatch files; results go to outputs/
