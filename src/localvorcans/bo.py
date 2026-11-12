@@ -3,13 +3,14 @@
 import time
 from typing import Callable
 
+import jax
 import jax.numpy as jnp
 import jax.random as jr
 import lagpax
 import numpy as np
 from jaxtyping import Array, Float
 
-from localvorcans.acquisition import log_expected_improvement, top_q
+from localvorcans.acquisition import log_expected_improvement
 from localvorcans.candidates import latin_hypercube, voronoi_candidates
 
 
@@ -42,8 +43,8 @@ def minimize(
         local = lagpax.aGPsep(
             x, y - y.mean(), candidates, end=min(neighbors, len(x)), method=method, key=gp_key
         )
-        score = log_expected_improvement(local.mean + y.mean(), local.var, y.min())
-        x_new = candidates[top_q(score, batch_size)]
+        score = log_expected_improvement(local.mean + y.mean(), jnp.sqrt(local.var), y.min())
+        x_new = candidates[jax.lax.top_k(score, batch_size)[1]]
         acquisition_time += time.perf_counter() - timer
 
         y_new = f(x_new)

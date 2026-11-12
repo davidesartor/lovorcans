@@ -1,25 +1,81 @@
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 import jax.scipy as jsp
-import numpy as np
+import pytest
 
-from localvorcans.acquisition import log_expected_improvement, top_q
-
-
-def test_log_ei_matches_the_closed_form_where_it_is_stable():
-    mean, var = jnp.linspace(-2.0, 2.0, 41), jnp.full(41, 0.5)
-    sigma = jnp.sqrt(var)
-    z = (0.0 - mean) / sigma
-    ei = sigma * (z * jsp.stats.norm.cdf(z) + jsp.stats.norm.pdf(z))
-    np.testing.assert_allclose(log_expected_improvement(mean, var, 0.0), jnp.log(ei), rtol=1e-10)
+from localvorcans.acquisition import (
+    log_expected_improvement,
+    q_log_expected_improvement,
+    upper_confidence_bound,
+)
 
 
-def test_log_ei_is_finite_with_finite_gradients_far_in_the_tail():
-    mean, var = jnp.array([1e2, 1e4, 1e8]), jnp.ones(3)
-    assert jnp.all(jnp.isfinite(log_expected_improvement(mean, var, 0.0)))
-    grad = jax.grad(lambda m: log_expected_improvement(m, var, 0.0).sum())(mean)
-    assert jnp.all(jnp.isfinite(grad))
+def naive_log_ei(mu, sigma, y_best):
+    z = (y_best - mu) / sigma
+    return jnp.log(sigma * (jsp.stats.norm.pdf(z) + z * jsp.stats.norm.cdf(z)))
 
 
-def test_top_q_picks_the_highest_scores():
-    assert set(top_q(jnp.array([0.1, 3.0, -1.0, 2.0]), 2).tolist()) == {1, 3}
+def test_matches_naive_in_easy_regime():
+    mu = jnp.linspace(-2.0, 2.0, 20)
+    sigma, y_best = jnp.array(0.7), jnp.array(0.5)
+    got = log_expected_improvement(mu, sigma, y_best)
+    assert got == pytest.approx(naive_log_ei(mu, sigma, y_best), abs=1e-5)
+
+
+def test_finite_and_monotone_for_extreme_z():
+    """Far below the incumbent log EI stays finite and decreasing, no -inf or NaN."""
+    z = -jnp.logspace(0.0, 12.0, 30)
+    log_ei = log_expected_improvement(-z, jnp.array(1.0), jnp.array(0.0))
+    assert bool(jnp.isfinite(log_ei).all())
+    assert bool((jnp.diff(log_ei) < 0).all())
+
+
+@pytest.mark.parametrize("mu", [0.0, 5.0, 1e5, 1e10], ids=lambda m: f"mu={m:g}")
+def test_grad_finite_in_every_branch(mu):
+    grad = jax.grad(
+        lambda m: log_expected_improvement(m, jnp.array(1.0), jnp.array(0.0))
+    )(jnp.array(mu))
+    assert bool(jnp.isfinite(grad))
+
+
+def test_grad_wrt_sigma_finite():
+    for mu in (0.0, 5.0, 1e5):
+        grad = jax.grad(
+            lambda s: log_expected_improvement(jnp.array(mu), s, jnp.array(0.0))
+        )(jnp.array(1.0))
+        assert bool(jnp.isfinite(grad))
+
+
+def test_broadcasts_over_batch_shapes():
+    mu = jnp.zeros((4, 3))
+    sigma = jnp.ones(3)
+    out = log_expected_improvement(mu, sigma, jnp.array(0.0))
+    assert out.shape == (4, 3)
+    assert out == pytest.approx(float(naive_log_ei(0.0, 1.0, 0.0)))
+
+
+@pytest.mark.parametrize("sigma", [1.0, 1e-3], ids=lambda s: f"sigma={s:g}")
+def test_single_point_q_log_ei_matches_analytic(sigma):
+    """The relu temperature sits far below the posterior scale, so small improvements stay EI."""
+    mu, y_best = jnp.array([0.5 * sigma]), jnp.array(0.0)
+    eps = jr.normal(jr.key(0), (50_000, 1))
+    got = q_log_expected_improvement(mu, jnp.array([[sigma**2]]), y_best, eps)
+    expected = log_expected_improvement(mu[0], jnp.array(sigma), y_best)
+    assert got == pytest.approx(expected, abs=5e-2)
+
+
+def test_ucb_matches_formula_and_broadcasts():
+    mu = jnp.linspace(-1.0, 1.0, 5)
+    sigma = jnp.ones((3, 5))
+    out = upper_confidence_bound(mu, sigma, jnp.array(4.0))
+    assert out.shape == (3, 5)
+    assert out == pytest.approx(-mu + 2.0 * sigma)
+
+
+def test_matches_vmap_over_scalars():
+    mu = jnp.linspace(-5.0, 5.0, 11)
+    sigma, y_best = jnp.array(0.3), jnp.array(1.0)
+    batched = log_expected_improvement(mu, sigma, y_best)
+    vmapped = jax.vmap(lambda m: log_expected_improvement(m, sigma, y_best))(mu)
+    assert batched == pytest.approx(vmapped)
